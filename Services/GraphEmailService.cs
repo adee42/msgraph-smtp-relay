@@ -98,7 +98,8 @@ namespace SMTPRelay.Services
                 await _graphClient.Users[sendFrom].SendMail.PostAsync(requestBody, cancellationToken: cancellationToken);
 
                 // Log successful send operation
-                _logger.LogInformation("Email sent successfully via Graph API to {Recipients}", string.Join(", ", toRecipients));
+                var allRecipients = toRecipients.Concat(ccRecipients ?? new()).Concat(bccRecipients ?? new());
+                _logger.LogInformation("Email sent successfully via Graph API as {SendFrom} to {Recipients}", sendFrom, string.Join(", ", allRecipients));
             }
             // Handle and log any errors during email sending
             catch (Exception ex)

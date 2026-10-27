@@ -21,9 +21,9 @@ namespace SMTPRelay.Services
         {
             _logger.LogInformation("MessageStoreFactory.CreateInstance called - creating SmtpMessageStore from service provider");
 
-            // Create a scope to resolve transient services
-            var scope = _serviceProvider.CreateScope();
-            var messageStore = scope.ServiceProvider.GetRequiredService<SmtpMessageStore>();
+            // SmtpMessageStore is not disposable and only depends on singletons, so it can be resolved
+            // from the root provider without creating a scope that would never be disposed
+            var messageStore = _serviceProvider.GetRequiredService<SmtpMessageStore>();
 
             _logger.LogInformation("SmtpMessageStore instance created successfully via factory");
 

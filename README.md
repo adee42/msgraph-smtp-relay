@@ -8,7 +8,8 @@ A Windows service that accepts SMTP connections and forwards the messages to Mic
 - Sends it through Microsoft Graph with an app registration (client credentials)
 - Accepts mail only from allowed client IP addresses or ranges
 - Sends only as a configured mailbox or an explicit list of allowed senders
-- Supports HTML and plain-text bodies, Cc/Bcc headers and attachments
+- Delivers to the SMTP envelope recipients (`RCPT TO`), keeping To/Cc from the headers and sending other recipients as Bcc
+- Supports HTML and plain-text bodies and attachments
 - Runs as a Windows service or from the console
 - Writes received, forwarded and failed messages to the Windows Event Log
 
@@ -102,8 +103,8 @@ A successful run logs:
 ```
 Accepting sender: noreply@yourdomain.com from client 127.0.0.1
 Accepting recipient: you@yourdomain.com from noreply@yourdomain.com
-Received email from noreply@yourdomain.com to you@yourdomain.com with subject: Test Email from SMTP Relay, format: Text, attachments: 0
-Email sent successfully via Graph API to you@yourdomain.com
+Received email from noreply@yourdomain.com to you@yourdomain.com (Cc: , Bcc: ) with subject: Test Email from SMTP Relay, format: Text, attachments: 0
+Email sent successfully via Graph API as noreply@yourdomain.com to you@yourdomain.com
 ```
 
 ## Logging
@@ -123,7 +124,7 @@ In console mode, logs are written to the console. As a service, logs go to the W
 - The relay does not authenticate SMTP clients. Keep `AllowedClients` as narrow as possible and firewall the port.
 - Restrict the app registration to the mailboxes it sends as (see [Prerequisites](#prerequisites)).
 - Protect `appsettings.json`: it contains the client secret. Limit file access to administrators and the service account, and rotate the secret regularly.
-- Recipients are taken from the message's `To`, `Cc` and `Bcc` headers.
+- Only the SMTP envelope recipients (`RCPT TO`) receive the message. Addresses that appear only in the `To` or `Cc` header are not delivered to.
 
 ## Troubleshooting
 

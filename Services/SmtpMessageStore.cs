@@ -41,9 +41,25 @@ namespace SMTPRelay.Services
 
                 var message = await MimeMessage.LoadAsync(stream, cancellationToken);
 
-                var toRecipients = message.To.Mailboxes.Select(m => m.Address).ToList();
-                var ccRecipients = message.Cc.Mailboxes.Select(m => m.Address).ToList();
-                var bccRecipients = message.Bcc.Mailboxes.Select(m => m.Address).ToList();
+                // The SMTP envelope (RCPT TO) decides who receives the message. Header To/Cc addresses are kept
+                // where they are also envelope recipients; envelope-only recipients are sent as Bcc.
+                var envelopeRecipients = transaction.To.Select(m => m.AsAddress()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var toRecipients = message.To.Mailboxes.Select(m => m.Address)
+                    .Where(address => envelopeRecipients.Contains(address, StringComparer.OrdinalIgnoreCase))
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var ccRecipients = message.Cc.Mailboxes.Select(m => m.Address)
+                    .Where(address => envelopeRecipients.Contains(address, StringComparer.OrdinalIgnoreCase))
+                    .Except(toRecipients, StringComparer.OrdinalIgnoreCase)
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var bccRecipients = envelopeRecipients
+                    .Except(toRecipients.Concat(ccRecipients), StringComparer.OrdinalIgnoreCase).ToList();
+
+                var headerOnlyRecipients = message.To.Mailboxes.Concat(message.Cc.Mailboxes).Select(m => m.Address)
+                    .Except(envelopeRecipients, StringComparer.OrdinalIgnoreCase).ToList();
+                if (headerOnlyRecipients.Any())
+                {
+                    _logger.LogInformation("Not delivering to header-only recipients (not in RCPT TO): {Recipients}", string.Join(", ", headerOnlyRecipients));
+                }
 
                 var fromAddress = message.From.Mailboxes.FirstOrDefault()?.Address;
                 var subject = message.Subject;
@@ -59,13 +75,14 @@ namespace SMTPRelay.Services
                 var messageSize = buffer.Length;
 
                 // Log to standard logger
-                _logger.LogInformation("Received email from {From} to {To} with subject: {Subject}, format: {Format}, attachments: {AttachmentCount}", 
-                    fromAddress, string.Join(", ", toRecipients), subject, isHtml ? "HTML" : "Text", attachments?.Count ?? 0);
+                _logger.LogInformation("Received email from {From} to {To} (Cc: {Cc}, Bcc: {Bcc}) with subject: {Subject}, format: {Format}, attachments: {AttachmentCount}",
+                    fromAddress, string.Join(", ", toRecipients), string.Join(", ", ccRecipients), string.Join(", ", bccRecipients),
+                    subject, isHtml ? "HTML" : "Text", attachments?.Count ?? 0);
 
                 // Log incoming email to Windows Event Log
                 _eventLogService.LogIncomingEmail(
                     fromAddress ?? "(Unknown)",
-                    string.Join(", ", toRecipients),
+                    string.Join(", ", envelopeRecipients),
                     subject ?? "(No Subject)",
                     messageSize,
                     attachments?.Count ?? 0);
@@ -87,7 +104,7 @@ namespace SMTPRelay.Services
                     // Log successful forwarding to Windows Event Log
                     _eventLogService.LogOutgoingEmailSuccess(
                         fromAddress ?? "(Unknown)",
-                        string.Join(", ", toRecipients),
+                        string.Join(", ", envelopeRecipients),
                         subject ?? "(No Subject)");
 
                     return SmtpResponse.Ok;
@@ -97,7 +114,7 @@ namespace SMTPRelay.Services
                     // Log failed forwarding to Windows Event Log
                     _eventLogService.LogOutgoingEmailFailure(
                         fromAddress ?? "(Unknown)",
-                        string.Join(", ", toRecipients),
+                        string.Join(", ", envelopeRecipients),
                         subject ?? "(No Subject)",
                         graphEx.Message);
 
