@@ -1,4 +1,5 @@
 using SmtpServer;
+using SmtpServer.Net;
 
 namespace SMTPRelay.Services
 {
@@ -17,7 +18,7 @@ namespace SMTPRelay.Services
         public void OnSessionCreated(object? sender, SessionEventArgs e)
         {
             _logger.LogInformation("SMTP Session Created - Remote: {RemoteEndpoint}, SessionId: {SessionId}", 
-                e.Context.Properties.TryGetValue("RemoteEndPoint", out var endpoint) ? endpoint : "unknown",
+                e.Context.Properties.TryGetValue(EndpointListener.RemoteEndPointKey, out var endpoint) ? endpoint : "unknown",
                 e.Context.Properties.TryGetValue("SessionId", out var sessionId) ? sessionId : "unknown");
             
             e.Context.CommandExecuting += OnCommandExecuting;
@@ -27,13 +28,13 @@ namespace SMTPRelay.Services
         public void OnSessionCompleted(object? sender, SessionEventArgs e)
         {
             _logger.LogInformation("SMTP Session Completed - Remote: {RemoteEndpoint}", 
-                e.Context.Properties.TryGetValue("RemoteEndPoint", out var endpoint) ? endpoint : "unknown");
+                e.Context.Properties.TryGetValue(EndpointListener.RemoteEndPointKey, out var endpoint) ? endpoint : "unknown");
         }
 
         public void OnSessionFaulted(object? sender, SessionFaultedEventArgs e)
         {
             _logger.LogError(e.Exception, "SMTP Session Faulted - Remote: {RemoteEndpoint}", 
-                e.Context.Properties.TryGetValue("RemoteEndPoint", out var endpoint) ? endpoint : "unknown");
+                e.Context.Properties.TryGetValue(EndpointListener.RemoteEndPointKey, out var endpoint) ? endpoint : "unknown");
         }
 
         private void OnCommandExecuting(object? sender, SmtpCommandEventArgs e)

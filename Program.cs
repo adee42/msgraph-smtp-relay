@@ -49,10 +49,10 @@ builder.Services.AddSingleton<IMessageStoreFactory>(sp => sp.GetRequiredService<
 builder.Services.AddSingleton<NoAuthenticationUserAuthenticator>();
 builder.Services.AddSingleton<IUserAuthenticator>(sp => sp.GetRequiredService<NoAuthenticationUserAuthenticator>());
 builder.Services.AddSingleton<IUserAuthenticatorFactory>(sp => sp.GetRequiredService<NoAuthenticationUserAuthenticator>());
-// Register mailbox filter to accept all recipients
-builder.Services.AddSingleton<AcceptAllMailboxFilter>();
-builder.Services.AddSingleton<IMailboxFilter>(sp => sp.GetRequiredService<AcceptAllMailboxFilter>());
-builder.Services.AddSingleton<IMailboxFilterFactory>(sp => sp.GetRequiredService<AcceptAllMailboxFilter>());
+// Register mailbox filter to accept mail only from allowed client IPs
+builder.Services.AddSingleton<AllowedClientMailboxFilter>();
+builder.Services.AddSingleton<IMailboxFilter>(sp => sp.GetRequiredService<AllowedClientMailboxFilter>());
+builder.Services.AddSingleton<IMailboxFilterFactory>(sp => sp.GetRequiredService<AllowedClientMailboxFilter>());
 
 builder.Services.AddHostedService<Worker>();
 

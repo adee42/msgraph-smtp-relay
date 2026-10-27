@@ -1,6 +1,7 @@
 using MimeKit;
 using SmtpServer;
 using SmtpServer.Mail;
+using SmtpServer.Net;
 using SmtpServer.Protocol;
 using SmtpServer.Storage;
 using System.Buffers;
@@ -27,7 +28,7 @@ namespace SMTPRelay.Services
             ReadOnlySequence<byte> buffer, CancellationToken cancellationToken)
         {
             // Log that a message is being received
-            _logger.LogInformation("SaveAsync called - processing incoming email from {RemoteEndpoint}", context.Properties.TryGetValue("RemoteEndPoint", out var endpoint) ? endpoint : "unknown");
+            _logger.LogInformation("SaveAsync called - processing incoming email from {RemoteEndpoint}", context.Properties.TryGetValue(EndpointListener.RemoteEndPointKey, out var endpoint) ? endpoint : "unknown");
 
             try
             {
@@ -116,7 +117,7 @@ namespace SMTPRelay.Services
 
             foreach (var attachment in message.Attachments)
             {
-                if (attachment is MimePart mimePart)
+                if (attachment is MimePart { Content: not null } mimePart)
                 {
                     using var memoryStream = new MemoryStream();
                     await mimePart.Content.DecodeToAsync(memoryStream, cancellationToken);

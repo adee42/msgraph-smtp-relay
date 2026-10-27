@@ -60,6 +60,17 @@ namespace SMTPRelay
                 _logger.LogError(ex, "Error resolving services from service provider");
             }
 
+            // Resolve the client filter up front so an invalid AllowedClients entry stops the service at startup
+            var clientFilter = _serviceProvider.GetRequiredService<AllowedClientMailboxFilter>();
+            if (clientFilter.AllowsAnyClient)
+            {
+                _logger.LogWarning("SmtpServer:AllowedClients is empty - mail is accepted from any client. Restrict it to trusted hosts.");
+            }
+            else
+            {
+                _logger.LogInformation("Accepting mail only from: {AllowedClients}", string.Join(", ", _smtpSettings.AllowedClients));
+            }
+
             // Configure SMTP server with explicit endpoint
             var options = new SmtpServerOptionsBuilder()
                 .ServerName("SMTP Relay Service")

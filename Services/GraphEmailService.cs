@@ -84,8 +84,8 @@ namespace SMTPRelay.Services
                     message.Attachments = attachments.Cast<Attachment>().ToList();
                 }
 
-                // Determine the sender address (use provided or default from settings)
-                var sendFrom = fromAddress ?? _settings.SendFromAddress;
+                // Determine the sender address (only SendFromAddress or an allowed sender)
+                var sendFrom = ResolveSender(fromAddress);
 
                 // Prepare the send mail request
                 var requestBody = new SendMailPostRequestBody
@@ -103,9 +103,29 @@ namespace SMTPRelay.Services
             // Handle and log any errors during email sending
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to send email via Graph API" + ex.Message);
+                _logger.LogError(ex, "Failed to send email via Graph API: {Error}", ex.Message);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Returns the requested sender if it is SendFromAddress or listed in AllowedSenders, otherwise SendFromAddress
+        /// </summary>
+        private string ResolveSender(string? fromAddress)
+        {
+            if (string.IsNullOrWhiteSpace(fromAddress))
+            {
+                return _settings.SendFromAddress;
+            }
+
+            if (string.Equals(fromAddress, _settings.SendFromAddress, StringComparison.OrdinalIgnoreCase)
+                || _settings.AllowedSenders.Contains(fromAddress, StringComparer.OrdinalIgnoreCase))
+            {
+                return fromAddress;
+            }
+
+            _logger.LogInformation("Sender {From} is not in AllowedSenders - sending as {SendFromAddress}", fromAddress, _settings.SendFromAddress);
+            return _settings.SendFromAddress;
         }
     }
 }
